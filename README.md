@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 
 # Nexus Medical AI – Your AI Medical Assistant
 
