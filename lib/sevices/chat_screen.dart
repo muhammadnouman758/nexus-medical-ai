@@ -1,7 +1,6 @@
 // lib/screens/chat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../model/chat.dart';
 import 'chat_service.dart';
 
@@ -26,18 +25,28 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _addWelcomeMessage() {
     _messages.add(ChatMessage(
-      content: "Hello! I'm MediHunt+, your AI medical assistant. "
-          "How can I help you today?",
+      content: "Hello! I'm MediHunt+, your AI medical assistant.\n\n"
+          "I can help with:\n"
+          "• Symptom analysis\n"
+          "• General health information\n"
+          "• Medication questions\n\n"
+          "⚠️ Remember: I'm not a doctor. For serious concerns, "
+          "please consult a healthcare professional immediately.",
       isUser: false,
+      timestamp: DateTime.now(),
     ));
   }
 
   Future<void> _sendMessage() async {
     final message = _controller.text.trim();
-    if (message.isEmpty) return;
+    if (message.isEmpty || _isLoading) return;
 
     setState(() {
-      _messages.add(ChatMessage(content: message, isUser: true));
+      _messages.add(ChatMessage(
+        content: message,
+        isUser: true,
+        timestamp: DateTime.now(),
+      ));
       _controller.clear();
       _isLoading = true;
     });
@@ -45,10 +54,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
-      final response = await context.read<ChatService>().getAssistantResponse(
-        message,
-        _messages,
-      );
+      final response = await Provider.of<ChatService>(context, listen: false)
+          .getAssistantResponse(message, _messages);
+
       setState(() {
         _messages.add(response);
         _isLoading = false;
@@ -56,9 +64,10 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       setState(() {
         _messages.add(ChatMessage(
-          content: "Error processing your request",
+          content: "Error: ${e.toString()}",
           isUser: false,
           status: MessageStatus.error,
+          timestamp: DateTime.now(),
         ));
         _isLoading = false;
       });
@@ -83,11 +92,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Medical Assistant'),
+        title: const Text('MediHunt+ Assistant'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.medical_information),
+            icon: const Icon(Icons.info_outline),
             onPressed: () => _showAssistantInfo(context),
+            tooltip: 'About this assistant',
           ),
         ],
       ),
@@ -96,7 +106,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(top: 8),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 return ChatBubble(message: _messages[index]);
@@ -113,10 +123,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.5),
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -124,18 +138,36 @@ class _ChatScreenState extends State<ChatScreen> {
             child: TextField(
               controller: _controller,
               minLines: 1,
-              maxLines: 3,
+              maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Describe your symptoms or ask a question...',
+                hintText: 'Type your health question...',
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                suffixIcon: _controller.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => _controller.clear(),
+                )
+                    : null,
               ),
               onSubmitted: (_) => _sendMessage(),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.send),
-            onPressed: _sendMessage,
+          const SizedBox(width: 4),
+          Container(
+            margin: const EdgeInsets.only(left: 4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.white),
+              onPressed: _sendMessage,
+              tooltip: 'Send message',
+            ),
           ),
         ],
       ),
@@ -146,18 +178,38 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('About MediHunt+ Assistant'),
-        content: const Text(
-          'I can help you understand medical conditions, symptoms, and treatments. '
-              'However, please note:\n\n'
-              '- I am not a substitute for professional medical advice\n'
-              '- Always consult a healthcare provider for diagnosis\n'
-              '- In emergencies, contact local emergency services immediately',
+        title: const Text('About MediHunt+'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'This AI assistant provides general health information and should not be used as a substitute for professional medical advice.',
+                style: TextStyle(height: 1.5),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Key limitations:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('• Cannot diagnose conditions'),
+              Text('• Not a replacement for doctor visits'),
+              Text('• May not have the latest research'),
+              Text('• Limited emergency advice'),
+              SizedBox(height: 16),
+              Text(
+                'For emergencies, call your local emergency number immediately.',
+                style: TextStyle(color: Colors.red),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: const Text('I Understand'),
           ),
         ],
       ),
@@ -168,84 +220,114 @@ class _ChatScreenState extends State<ChatScreen> {
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
 
-  const ChatBubble({super.key, required this.message});
+  const ChatBubble({
+    super.key,
+    required this.message,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUser = message.isUser;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!message.isUser)
+          if (!isUser)
             Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                shape: BoxShape.circle,
+              margin: const EdgeInsets.only(right: 8),
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: theme.colorScheme.primary,
+                child: const Icon(
+                  Icons.medical_services,
+                  size: 16,
+                  color: Colors.white,
+                ),
               ),
-              child: const Icon(Icons.medical_services, color: Colors.white, size: 18),
             ),
-          if (message.isUser) const Spacer(),
+          if (isUser) const Spacer(),
           Flexible(
-            flex: 7,
-            child: Container(
-              margin: EdgeInsets.only(
-                left: message.isUser ? 64 : 8,
-                right: message.isUser ? 8 : 64,
-              ),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: message.isUser
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : Theme.of(context).colorScheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      color: message.isUser
-                          ? Theme.of(context).colorScheme.onPrimaryContainer
-                          : Theme.of(context).colorScheme.onSurface,
+            child: Column(
+              crossAxisAlignment:
+              isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isUser
+                        ? theme.colorScheme.primary.withOpacity(0.1)
+                        : theme.colorScheme.surfaceVariant,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isUser ? 16 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 16),
                     ),
                   ),
-                  if (message.status == MessageStatus.sending)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message.content,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isUser
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
+                      if (message.status == MessageStatus.error)
+                        _buildErrorWidget(context),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    _formatTime(message.timestamp),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.outline,
                     ),
-                  if (message.status == MessageStatus.error)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error, color: Colors.red.shade400, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Failed to send',
-                            style: TextStyle(
-                              color: Colors.red.shade400,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (!message.isUser) const Spacer(),
+          if (!isUser) const Spacer(),
         ],
       ),
     );
+  }
+
+  Widget _buildErrorWidget(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 16,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Failed to connect',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime? timestamp) {
+    if (timestamp == null) return '';
+    return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
   }
 }

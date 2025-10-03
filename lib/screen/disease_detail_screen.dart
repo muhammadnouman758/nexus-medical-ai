@@ -5,6 +5,20 @@ import 'package:provider/provider.dart';
 import '../model/bookmark.dart';
 import '../repository/bookmark_repository.dart';
 
+class DiseaseDetailScreen extends StatefulWidget {
+  final String diseaseName;
+  final String diseaseInfo;
+
+  const DiseaseDetailScreen({
+    Key? key,
+    required this.diseaseName,
+    required this.diseaseInfo,
+  }) : super(key: key);
+
+  @override
+  State<DiseaseDetailScreen> createState() => _DiseaseDetailScreenState();
+}
+
 class _DiseaseDetailScreenState extends State<DiseaseDetailScreen> {
   bool _isBookmarked = false;
   late BookmarkRepository _bookmarkRepo;
@@ -36,14 +50,28 @@ class _DiseaseDetailScreenState extends State<DiseaseDetailScreen> {
     setState(() => _isBookmarked = !_isBookmarked);
   }
 
-  // Add to app bar actions
-  actions: [
-  IconButton(
-  icon: Icon(
-  _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-  color: _isBookmarked ? Theme.of(context).colorScheme.primary : null,
-  ),
-  onPressed: _toggleBookmark,
-  ),
-  ],
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.diseaseName),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+              color: _isBookmarked ? Theme.of(context).colorScheme.primary : null,
+            ),
+            onPressed: _toggleBookmark,
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(
+          widget.diseaseInfo,
+          style: TextStyle(fontSize: 16),
+        ),
+      ),
+    );
+  }
 }
