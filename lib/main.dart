@@ -1,7 +1,7 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:medical/provider/theme_provider.dart';
 import 'package:medical/repository/bookmark_repository.dart';
+import 'package:medical/repository/tracking_repository.dart';
 import 'package:medical/screen/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +14,9 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         Provider(create: (_) => BookmarkRepository(prefs)),
-        // Add other providers
+        Provider(create: (_) => TrackingRepository(prefs)),
+        // Provider(create: (_) => TrackingRepository(prefs)), // Add this provider
+        // Add other providers as needed
       ],
       child: const NexusMedicalApp(),
     ),
@@ -46,9 +48,13 @@ class NexusMedicalApp extends StatelessWidget {
         // Add dark theme customizations
       ),
       themeMode: themeProvider.themeMode,
-      home: const HomeScreen(),
+      home: Builder(
+        builder: (context) {
+          // This ensures the HomeScreen has access to all providers
+          return const HomeScreen();
+        },
+      ),
     );
   }
 }
-
 // 4 milestone Achieve
